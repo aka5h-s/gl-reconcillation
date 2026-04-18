@@ -1,0 +1,42 @@
+_schema-version: '3.1'
+ID: gl-reconciliation
+version: 1.0.0
+description: GL Reconciliation CAP Application
+
+modules:
+  - name: gl-reconciliation-srv
+    type: nodejs
+    path: .
+    parameters:
+      buildpack: nodejs_buildpack
+      memory: 256M
+      disk-quota: 512M
+    build-parameters:
+      builder: npm
+      build-result: .
+      ignore:
+        - node_modules/
+        - .env
+    properties:
+      NODE_ENV: production
+      CDS_AUTH_KIND: dummy
+    requires:
+      - name: gl-recon-postgres
+      - name: gl-recon-destination
+      - name: gl-recon-connectivity
+
+resources:
+  - name: gl-recon-postgres
+    type: org.cloudfoundry.existing-service
+    parameters:
+      service-name: ebrd-postgre-dev
+
+  - name: gl-recon-destination
+    type: org.cloudfoundry.existing-service
+    parameters:
+      service-name: destination
+
+  - name: gl-recon-connectivity
+    type: org.cloudfoundry.existing-service
+    parameters:
+      service-name: ebrd-accounting-data-connectivity-service
