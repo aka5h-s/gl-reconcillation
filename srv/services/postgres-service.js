@@ -5,17 +5,19 @@
 //   - At POLL_START_HOUR:POLL_START_MINUTE (default 12:00) each day, node-cron opens a polling window.
 //   - Every POLL_INTERVAL_MS (5 minutes), PostgreSQL is queried for a completed Summit job.
 //   - When a completed job is found, polling stops and reconciliation runs immediately.
-//   - If no job is found within POLL_TIMEOUT_HOURS (default 6), polling stops automatically.
+//   - If no job is found within POLL_TIMEOUT_HOURS (default 6), polling stops automatically
+//     and a NO_SUMMIT notification is sent to APIM.
 //   - After reconciliation finishes, the scheduler automatically arms itself for the
 //     next day's polling window at POLL_START_HOUR.
 //
-// Environment variables (all optional — defaults shown):
-//   POLL_START_HOUR    — hour (0-23) to open the daily polling window (default: 12)
-//   POLL_START_MINUTE  — minute (0-59) to open the daily polling window (default: 0)
-//   POLL_TIMEOUT_HOURS — hours to keep the polling window open before giving up (default: 6)
+// Configuration (hardcoded):
+//   POLL_START_HOUR    = 12  — polling window opens at 12:00 UTC daily
+//   POLL_START_MINUTE  = 0
+//   POLL_TIMEOUT_HOURS = 6   — polling window closes after 6 hours if no job is detected
 
 const cds  = require('@sap/cds');
 const cron = require('node-cron');
+const { notifyAPIM } = require('./apim-service');
 
 const log = cds.log('postgres-service');
 
@@ -38,12 +40,12 @@ const FRAMEWORK_FLAG_COL   = 'frameworksdataprocessedsuccessfully';
 // const TIMESTAMP_COLUMN  = process.env.SUMMIT_TIME_COL   || 'modifiedat';
 // const DATE_COLUMN       = process.env.SUMMIT_DATE_COL   || 'appdate';
 
-// Hour and minute at which the daily polling window opens. Defaults to 12:00 (noon).
+// Hour and minute at which the daily polling window opens — 12:00 UTC.
 const POLL_START_HOUR   = 12;
 const POLL_START_MINUTE = 0;
 
 // Maximum hours to keep the polling window open before giving up for the day.
-const POLL_TIMEOUT_HOURS = parseInt(process.env.POLL_TIMEOUT_HOURS || '6', 10);
+const POLL_TIMEOUT_HOURS = 6;
 const POLL_TIMEOUT_MS    = POLL_TIMEOUT_HOURS * 60 * 60 * 1000;
 
 // --- State ---
@@ -64,20 +66,6 @@ function ts() {
   return new Date().toTimeString().slice(0, 8);
 }
 
-// Old helper — kept as reference; no longer needed since processingdate is always midnight.
-// function calculateNextHour(completionTime) {
-//   const d = new Date(completionTime);
-//   d.setMinutes(0, 0, 0);
-//   d.setHours(d.getHours() + 1);
-//   return d;
-// }
-
-// Old helper — kept as reference; appdate (YYYYMMDD) is no longer used for polling.
-// function formatAppDate(appdate) {
-//   const s = String(appdate);
-//   return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
-// }
-
 // --- Polling ---
 
 // Queries PostgreSQL for a completed Summit job row in today's process status table.
@@ -87,14 +75,14 @@ function ts() {
 async function checkSummitJob(onJobComplete) {
   // Stop polling if the window has been open longer than POLL_TIMEOUT_HOURS
   if (pollingStartTime && (Date.now() - pollingStartTime) >= POLL_TIMEOUT_MS) {
-    expirePolling();
+    await expirePolling();
     return;
   }
 
   try {
     const db = await cds.connect.to('db');
 
-    // ── NEW: Poll db_accountingdataprocessstatus (active) ──────────────────────
+    // ── Poll db_accountingdataprocessstatus ────────────────────────────────────
     // A row is present for today when both summitdataprocessedsuccessfully and
     // frameworksdataprocessedsuccessfully are 'X', meaning the daily job is done.
     const rows = await db.run(
@@ -105,18 +93,6 @@ async function checkSummitJob(onJobComplete) {
          AND ${FRAMEWORK_FLAG_COL} = 'X'
        LIMIT 1`
     );
-
-    // ── OLD: Poll db_accountingdata for status '04' (kept for reference) ────────
-    // Status '04' = Journal Entry Posting Successful. In practice, zero records
-    // ever reach this status — the authoritative completion signal is the
-    // db_accountingdataprocessstatus table above.
-    // const rows = await db.run(
-    //   `SELECT MAX(${TIMESTAMP_COLUMN}) AS completion_time,
-    //           MAX(${DATE_COLUMN})      AS posting_date
-    //    FROM ${SUMMIT_JOB_TABLE}
-    //    WHERE ${STATUS_COLUMN} = $1`,
-    //   [COMPLETED_VALUE]
-    // );
 
     const row = rows && rows[0];
 
@@ -180,12 +156,24 @@ function stopPolling() {
 }
 
 // Stops the active polling interval after the timeout window has elapsed with no data.
-function expirePolling() {
+// Sends NO_SUMMIT to APIM to signal that Summit did not run today.
+async function expirePolling() {
   if (pollingInterval) {
     clearInterval(pollingInterval);
     pollingInterval  = null;
     pollingStartTime = null;
+
+    const today = new Date().toISOString().slice(0, 10);
     log.warn(`[${ts()}] Polling window expired — no Summit job detected after ${POLL_TIMEOUT_HOURS}h. Next window tomorrow at ${String(POLL_START_HOUR).padStart(2, '0')}:${String(POLL_START_MINUTE).padStart(2, '0')}`);
+
+    try {
+      await notifyAPIM('NO_SUMMIT', {
+        message: `Summit job did not run today — no completion signal received within ${POLL_TIMEOUT_HOURS}h polling window`,
+        date:    today
+      });
+    } catch (err) {
+      log.error(`[${ts()}] Failed to send NO_SUMMIT notification to APIM: ${err.message}`);
+    }
   }
 }
 
