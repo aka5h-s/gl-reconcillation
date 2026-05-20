@@ -1,0 +1,198 @@
+@server=https://ebrd-bas-dev-cf-ebrd-bas-dev-space-gl-reconciliation-srv.cfapps.eu10-004.hana.ondemand.com
+@localServer=http://localhost:4004
+
+
+### Test S4 GL Line Item Connection
+# @name testS4ConnectionGLLineItem
+POST {{server}}/odata/v4/reconciliation/testS4ConnectionGLLineItem
+Content-Type: application/json
+
+{}
+
+
+### Test S4 Journal Entry Connection
+# @name testS4ConnectionJournalEntry
+POST {{server}}/odata/v4/reconciliation/testS4ConnectionJournalEntry
+Content-Type: application/json
+
+{}
+
+
+### Test Datasphere Connection
+# @name testDatasphereConnection
+POST {{server}}/odata/v4/reconciliation/testDatasphereConnection
+Content-Type: application/json
+
+{}
+
+
+### Test Database Connection
+# @name testDatabaseConnection
+POST {{server}}/odata/v4/reconciliation/testDatabaseConnection
+Content-Type: application/json
+
+{}
+
+
+### Test Database Table
+# @name testDatabaseTable
+POST {{server}}/odata/v4/reconciliation/testDatabaseTable
+Content-Type: application/json
+
+{}
+
+
+### Test S4 Count
+# @name testS4Count
+POST {{server}}/odata/v4/reconciliation/testS4Count
+Content-Type: application/json
+
+{}
+
+
+### Start Scheduler
+# @name startScheduler
+POST {{server}}/odata/v4/reconciliation/startScheduler
+Content-Type: application/json
+
+{}
+
+
+### Run Reconciliation
+# @name runReconciliation
+POST {{server}}/odata/v4/reconciliation/runReconciliation
+Content-Type: application/json
+
+{
+  "date": "2026-04-28",
+  "startHour": 24
+}
+
+
+### Get S4 Raw Data for Period
+# @name getS4DataForPeriod
+POST {{server}}/odata/v4/reconciliation/getS4DataForPeriod
+Content-Type: application/json
+
+{
+  "startDate": "2026-04-28T00:00:00",
+  "endDate": "2026-04-28T23:59:59"
+}
+
+
+### Get Datasphere Raw Data for Period
+# @name getDSDataForPeriod
+POST {{server}}/odata/v4/reconciliation/getDSDataForPeriod
+Content-Type: application/json
+
+{
+  "startDate": "20260428000000",
+  "endDate": "20260428235959"
+}
+
+
+### Test S4 Count by Date
+# @name testS4CountByDate
+POST {{server}}/odata/v4/reconciliation/testS4CountByDate
+Content-Type: application/json
+
+{
+  "date": "2026-04-28",
+  "startHour": 24
+}
+
+
+### Test S4 GL Count by Date
+# @name testS4GLCountByDate
+POST {{server}}/odata/v4/reconciliation/testS4GLCountByDate
+Content-Type: application/json
+
+{
+  "date": "2026-04-28",
+  "startHour": 24
+}
+
+
+### Test S4 Full Data by Date
+# @name testS4DataByDate
+POST {{server}}/odata/v4/reconciliation/testS4DataByDate
+Content-Type: application/json
+
+{
+  "date": "2026-04-28",
+  "startHour": 24
+}
+
+
+### Test Datasphere Count by Date
+# @name testDSCount
+POST {{server}}/odata/v4/reconciliation/testDSCount
+Content-Type: application/json
+
+{
+  "date": "2026-04-28",
+  "startHour": 24
+}
+
+
+### Test Datasphere GL Count by Date
+# @name testDSGLCount
+POST {{server}}/odata/v4/reconciliation/testDSGLCount
+Content-Type: application/json
+
+{
+  "date": "2026-04-28",
+  "startHour": 24
+}
+
+
+### Test Bulk Load
+# @name testBulkLoad
+POST {{server}}/odata/v4/reconciliation/testBulkLoad
+Content-Type: application/json
+
+{
+  "date": "2026-04-28",
+  "startHour": 24
+}
+
+
+### Test Datasphere Full Data by Date
+# @name testDSData
+POST {{server}}/odata/v4/reconciliation/testDSData
+Content-Type: application/json
+
+{
+  "date": "2026-04-28",
+  "startHour": 24
+}
+
+
+### Execute PostgreSQL Query
+# @name executeQuery
+POST {{server}}/odata/v4/reconciliation/executeQuery
+Content-Type: application/json
+
+{
+  "sql": "SELECT 1 AS ping"
+}
+
+
+### Test APIM Notification — SUCCESS
+# @name testAPIM_SUCCESS
+POST {{server}}/odata/v4/reconciliation/testAPIM
+Content-Type: application/json
+
+{
+  "status": "SUCCESS"
+}
+
+
+### Test APIM Notification — FAILED
+# @name testAPIM_FAILED
+POST {{server}}/odata/v4/reconciliation/testAPIM
+Content-Type: application/json
+
+{
+  "status": "FAILED"
+}

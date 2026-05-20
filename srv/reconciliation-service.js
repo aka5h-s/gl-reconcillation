@@ -25,6 +25,7 @@ const {
 
 const { runReconciliation }            = require('./services/compare-service');
 const { initScheduler, startPolling } = require('./services/postgres-service');
+const { notifyAPIM }                  = require('./services/apim-service');
 
 const log = cds.log('reconciliation-service');
 
@@ -186,6 +187,28 @@ module.exports = cds.service.impl(function () {
   this.on('getDSDataForPeriod', async (req) => {
     const { startDate, endDate } = req.data;
     return await getDSDataForPeriod(startDate, endDate);
+  });
+
+  // Sends a test APIM notification directly without running reconciliation.
+  // Accepts status: 'SUCCESS', 'FAILED', or 'NO_SUMMIT'
+  // Note: notifyAPIM maps SUCCESS → AIS-SUM-DATASPHERE_PROCESS_FINISHED_SUCCESS
+  //       and maps FAILED/NO_SUMMIT → AIS-SUM-DATASPHERE_PROCESS_FINISHED_FAILUR
+  //       (NO_SUMMIT has no distinct APIM event — it uses FAILUR for connectivity testing)
+  // Check CF logs for: "APIM notification sent: event=..., status=200"
+  this.on('testAPIM', async (req) => {
+    const { status } = req.data;
+    const allowed = ['SUCCESS', 'FAILED', 'NO_SUMMIT'];
+    if (!status || !allowed.includes(status)) {
+      return `ERROR: status must be one of ${allowed.join(', ')}`;
+    }
+    try {
+      const result = await notifyAPIM(status, { triggeredBy: 'testAPIM action' });
+      if (result.outcome === 'sent')    return `APIM notification sent — event=${result.event}, httpStatus=${result.httpStatus}`;
+      if (result.outcome === 'skipped') return `APIM notification skipped — ${result.reason}`;
+      return `APIM notification failed — event=${result.event}, httpStatus=${result.httpStatus}, body=${result.body}`;
+    } catch (err) {
+      return `APIM notification FAILED: ${err.message}`;
+    }
   });
 
   // Executes any SQL query against the connected PostgreSQL database.

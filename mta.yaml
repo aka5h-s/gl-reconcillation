@@ -24,6 +24,7 @@ modules:
       - name: gl-recon-postgres
       - name: gl-recon-destination
       - name: gl-recon-connectivity
+      - name: gl-reconciliation-logging-service
 
 resources:
   - name: gl-recon-postgres
@@ -40,3 +41,9 @@ resources:
     type: org.cloudfoundry.existing-service
     parameters:
       service-name: ebrd-accounting-data-connectivity-service
+
+  - name: gl-reconciliation-logging-service
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: application-logs
+      service-plan: lite

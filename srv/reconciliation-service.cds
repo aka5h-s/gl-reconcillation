@@ -150,4 +150,9 @@ service ReconciliationService {
   // Example: SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'db_accountingdata'
   action executeQuery(sql : String) returns String;
 
+  // Sends a test APIM notification directly without running reconciliation.
+  // Use to verify the APIM destination, subscription key, and Control-M event endpoint.
+  // status: 'SUCCESS', 'FAILED', or 'NO_SUMMIT'
+  action testAPIM(status : String) returns String;
+
 }
